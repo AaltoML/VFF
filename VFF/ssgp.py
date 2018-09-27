@@ -99,7 +99,7 @@ class SSGP(gpflow.models.GPModel):
             + n/2*np.log(2*np.pi)
         return -out
 
-    @name_scope('likelihood')
+    @name_scope('predict')
     @params_as_tensors
     def _build_predict(self, Xnew, full_cov=False):
         # w = w./repmat(ell',[m,1]);                                              % scaled model angular frequencies

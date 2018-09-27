@@ -24,8 +24,7 @@ from .matrix_structures import BlockDiagMat_many
 from gpflow import settings
 float_type = settings.dtypes.float_type
 
-
-class GPR_1d(gpflow.model.GPModel):
+class GPR_1d(gpflow.models.GPModel):
     def __init__(self, X, Y, ms, a, b, kern):
         assert X.shape[1] == 1
         assert isinstance(kern, (gpflow.kernels.Matern12,
@@ -33,7 +32,7 @@ class GPR_1d(gpflow.model.GPModel):
                                  gpflow.kernels.Matern52))
         likelihood = gpflow.likelihoods.Gaussian()
         mean_function = gpflow.mean_functions.Zero()
-        gpflow.model.GPModel.__init__(self, X, Y, kern,
+        gpflow.models.GPModel.__init__(self, X, Y, kern,
                                       likelihood, mean_function)
         self.num_data = X.shape[0]
         self.num_latent = Y.shape[1]
@@ -74,7 +73,7 @@ class GPR_1d(gpflow.model.GPModel):
                 -0.5 * tf.reduce_sum(Kdiag)/sigma2,
                 0.5 * Kuu.trace_KiX(self.KufKfu) / sigma2)
 
-    @gpflow.param.AutoFlow()
+    #@gpflow.param.AutoFlow()
     def compute_likelihood_terms(self):
         return self.build_likelihood_terms()
 
@@ -106,7 +105,7 @@ class GPR_1d(gpflow.model.GPModel):
         return mean, var
 
 
-class GPR_additive(gpflow.model.GPModel):
+class GPR_additive(gpflow.models.GPModel):
     def __init__(self, X, Y, ms, a, b, kern_list):
         assert X.shape[1] == len(kern_list)
         assert a.size == len(kern_list)
@@ -117,7 +116,7 @@ class GPR_additive(gpflow.model.GPModel):
                                      gpflow.kernels.Matern52))
         likelihood = gpflow.likelihoods.Gaussian()
         mean_function = gpflow.mean_functions.Zero()
-        gpflow.model.GPModel.__init__(self, X, Y, None,
+        gpflow.models.GPModel.__init__(self, X, Y, None,
                                       likelihood, mean_function)
         self.num_data = X.shape[0]
         self.num_latent = Y.shape[1]
@@ -125,10 +124,10 @@ class GPR_additive(gpflow.model.GPModel):
         self.b = b
         self.ms = ms
 
-        self.kerns = gpflow.param.ParamList(kern_list)
+        self.kerns = gpflow.params.ParamList(kern_list)
 
         # pre compute static quantities: chunk data to save memory
-        self.tr_YTY = gpflow.param.DataHolder(np.sum(np.square(Y)))
+        self.tr_YTY = gpflow.params.DataHolder(np.sum(np.square(Y)))
         Mtotal = (2*self.ms.size - 1) * X.shape[1]
         self.KufY = np.zeros((Mtotal, 1))
         self.KufKfu = np.zeros((Mtotal, Mtotal))
@@ -145,8 +144,8 @@ class GPR_additive(gpflow.model.GPModel):
                 Kuf_chunk = np.vstack((Kuf_chunk, Kuf))
             self.KufKfu += np.dot(Kuf_chunk, Kuf_chunk.T)
             self.KufY += KufY_chunk
-        self.KufY = gpflow.param.DataHolder(self.KufY)
-        self.KufKfu = gpflow.param.DataHolder(self.KufKfu)
+        self.KufY = gpflow.params.DataHolder(self.KufY)
+        self.KufKfu = gpflow.params.DataHolder(self.KufKfu)
 
     def build_likelihood(self):
         num_data = tf.shape(self.Y)[0]
@@ -205,7 +204,7 @@ class GPR_additive(gpflow.model.GPModel):
             var = tf.tile(tf.expand_dims(var, 1), shape)
         return mean, var
 
-    @gpflow.param.AutoFlow((float_type, [None, 1]))
+    #@gpflow.param.AutoFlow((float_type, [None, 1]))
     def predict_components(self, Xnew):
         """
         Here, Xnew should be a Nnew x 1 array of points at which to test each function
@@ -239,7 +238,7 @@ class GPR_additive(gpflow.model.GPModel):
         return tf.concat(mean, axis=1), tf.concat(var, axis=1)
 
 
-class GPRKron(gpflow.model.GPModel):
+class GPRKron(gpflow.models.GPModel):
     def __init__(self, X, Y, ms, a, b, kerns):
         for kern in kerns:
             assert isinstance(kern, (gpflow.kernels.Matern12,
@@ -247,9 +246,9 @@ class GPRKron(gpflow.model.GPModel):
                                      gpflow.kernels.Matern52))
         likelihood = gpflow.likelihoods.Gaussian()
         mean_function = gpflow.mean_functions.Zero()
-        gpflow.model.GPModel.__init__(self, X, Y, None,
+        gpflow.models.GPModel.__init__(self, X, Y, None,
                                       likelihood, mean_function)
-        self.kerns = gpflow.param.ParamList(kerns)
+        self.kerns = gpflow.params.ParamList(kerns)
         self.num_data = X.shape[0]
         self.num_latent = Y.shape[1]
         self.a = a
@@ -305,7 +304,7 @@ class GPRKron(gpflow.model.GPModel):
                 -0.5 * tf.reduce_sum(Kdiag)/sigma2,
                 0.5 * tf.reduce_sum(Kuu_inv_solid * self.KufKfu) / sigma2)
 
-    @gpflow.param.AutoFlow()
+    #@gpflow.param.AutoFlow()
     def compute_likelihood_terms(self):
         return self.build_likelihood_terms()
 
