@@ -80,7 +80,7 @@ class VGP_1d(gpflow.models.GPModel):
 
     @name_scope('KL')
     @params_as_tensors
-    def _build_KL(self):
+    def build_KL(self):
         """
         We're working in a 'whitened' representation, so this is the KL between
         q(u) and N(0, 1)
@@ -212,7 +212,7 @@ class VGP_additive(gpflow.models.GPModel):
 
     @name_scope('KL')
     @params_as_tensors
-    def _build_KL(self):
+    def build_KL(self):
         """
         We're working in a 'whitened' representation, so this is the KL between
         q(u) and N(0, 1)
@@ -226,7 +226,7 @@ class VGP_additive(gpflow.models.GPModel):
 
     @name_scope('likelihood')
     @params_as_tensors
-    def build_likelihood(self):
+    def _build_likelihood(self):
         # compute the mean and variance of the latent function
         f_mu, f_var = self.build_predict(self.X, full_cov=False)
 
@@ -261,18 +261,18 @@ class VGP_kron(gpflow.models.GPModel):
             Nsin_d = self.ms.size - 1
             self.Ms.append(Ncos_d + Nsin_d)
 
-        self.q_mu = gpflow.params.Param(np.zeros((np.prod(self.Ms), 1)))
+        self.q_mu = gpflow.params.Parameter(np.zeros((np.prod(self.Ms), 1)))
 
         # The covariance matrix
-        self.q_sqrt_kron = gpflow.params.ParamList([gpflow.params.Param(np.eye(M)) for M in self.Ms])
+        self.q_sqrt_kron = gpflow.params.ParamList([gpflow.params.Parameter(np.eye(M)) for M in self.Ms])
         self.use_two_krons = use_two_krons
         self.use_extra_ranks = use_extra_ranks
         assert not (use_extra_ranks and use_two_krons), "can only use one extra covariance structure at a time!"
         if use_two_krons:
             # same as above, but with different init to break symmetry
-            self.q_sqrt_kron_2 = gpflow.params.ParamList([gpflow.params.Param(np.eye(M)+0.01) for M in self.Ms])
+            self.q_sqrt_kron_2 = gpflow.params.ParamList([gpflow.params.Parameter(np.eye(M)+0.01) for M in self.Ms])
         elif use_extra_ranks:
-            self.q_sqrt_W = gpflow.params.Param(np.zeros((np.prod(self.Ms), use_extra_ranks)))
+            self.q_sqrt_W = gpflow.params.Parameter(np.zeros((np.prod(self.Ms), use_extra_ranks)))
 
         # pre-compute Kuf
         self._Kuf = [make_Kuf_np(X[:, i:i+1], ai, bi, self.ms)
@@ -365,9 +365,9 @@ class VGP_kron(gpflow.models.GPModel):
     def compute_KL(self):
         return self.build_KL()
     
-    @name_scope('KL')
-    @params_as_tensors
-    def _build_KL(self):
+    #@name_scope('KL')
+    #@params_as_tensors
+    def build_KL(self):
         """
         The covariance of q(u) has a kronecker structure, so
         appropriate reductions apply for the trace and logdet terms.
@@ -461,10 +461,10 @@ class VGP_kron_anyvar(gpflow.models.GPModel):
 
         self.kerns = gpflow.params.ParamList(kerns)
 
-        self.q_mu = gpflow.params.Param(np.zeros((np.prod(Ms), 1)))
+        self.q_mu = gpflow.params.Parameter(np.zeros((np.prod(Ms), 1)))
 
         # The covariance matrix gets very big very quickly
-        self.q_sqrt = gpflow.params.Param(np.eye(np.prod(Ms)))
+        self.q_sqrt = gpflow.params.Parameter(np.eye(np.prod(Ms)))
 
         # pre-compute the Kuf matrices
         self._Kuf = [tf.constant(make_Kuf_np(X[:, i:i+1], ai, bi, self.ms))
@@ -541,7 +541,7 @@ class VGP_kron_anyvar(gpflow.models.GPModel):
 
     @name_scope('KL')
     @params_as_tensors
-    def _build_KL(self):
+    def build_KL(self):
         """
         The covariance of q(u) has a kronecker structure, so
         appropriate reductions apply for the trace and logdet terms.

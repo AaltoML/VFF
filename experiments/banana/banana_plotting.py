@@ -17,14 +17,14 @@ import numpy as np
 from matplotlib import pyplot as plt
 from scipy.cluster.vq import kmeans
 import VFF
-import GPflow
+import gpflow
 np.random.seed(0)
 
-X = np.loadtxt('banana_X_train', delimiter=',')
-Y = np.loadtxt('banana_Y_train')[:, None]
+X = np.loadtxt('experiments/banana/banana_X_train', delimiter=',')
+Y = np.loadtxt('experiments/banana/banana_Y_train')[:, None]
 
-lik = GPflow.likelihoods.Bernoulli
-k = GPflow.kernels.Matern32
+lik = gpflow.likelihoods.Bernoulli
+k = gpflow.kernels.Matern32
 
 a = X.min(0) - 2.5
 b = X.max(0) + 2.5
@@ -47,6 +47,8 @@ def plot(m, ax):
 
 
 # Variational Fourier Features
+m = VFF.vgp.VGP_kron(X, Y, np.arange(20), a=a, b=b, kerns=[k(1), k(1)], likelihood=lik(), use_two_krons=True)    
+    
 models = []
 for M in [2, 4, 8, 16]:
     m = VFF.vgp.VGP_kron(X, Y, np.arange(M), a=a, b=b, kerns=[k(1), k(1)], likelihood=lik(), use_two_krons=True)
@@ -56,17 +58,18 @@ for M in [2, 4, 8, 16]:
 for M in [4, 8, 16, 32]:
     kern = k(1, active_dims=[0]) * k(1, active_dims=[1])
     Z, _ = kmeans(X, M)
-    m = GPflow.svgp.SVGP(X, Y, kern=kern, likelihood=lik(), Z=Z)
+    m = gpflow.models.svgp.SVGP(X, Y, kern=kern, likelihood=lik(), Z=Z)
     models.append(m)
 
 # full
-m = GPflow.vgp.VGP(X, Y, kern=k(1, active_dims=[0]) * k(1, active_dims=[1]), likelihood=lik())
+m = gpflow.models.vgp.VGP(X, Y, kern=k(1, active_dims=[0]) * k(1, active_dims=[1]), likelihood=lik())
 models.append(m)
 
 ###############
 for m in models:
     try:
-        m.optimize()
+        m.compile()
+        gpflow.train.ScipyOptimizer().minimize(m)
     except:
         print('model optimization failed')
 
