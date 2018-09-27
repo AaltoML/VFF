@@ -17,8 +17,21 @@ import gpflow
 import numpy as np
 import tensorflow as tf
 
+#from .. import likelihoods
+#from .. import settings
 
-class SSGP(gpflow.model.GPModel):
+#from ..conditionals import base_conditional
+#from ..params import DataHolder
+from gpflow.decors import params_as_tensors
+from gpflow.decors import name_scope
+
+from gpflow import settings
+float_type = settings.dtypes.float_type
+#from ..logdensities import multivariate_normal
+
+#from .model import GPModel
+
+class SSGP(gpflow.models.GPModel):
     """
     The Sparse Spectrum GP, judiciously copied from Miguel Lazaro Gredilla's
     MATLAB code, available at http://www.tsc.uc3m.es/~miguel/downloads.php. His
@@ -28,16 +41,16 @@ class SSGP(gpflow.model.GPModel):
     def __init__(self, X, Y, kern, num_basis=10):
         lik = gpflow.likelihoods.Gaussian()
         mf = gpflow.mean_functions.Zero()
-        gpflow.model.GPModel.__init__(self, X, Y, kern=kern, likelihood=lik, mean_function=mf)
+        gpflow.models.GPModel.__init__(self, X, Y, kern=kern, likelihood=lik, mean_function=mf)
         input_dim = self.X.shape[1]
         if isinstance(kern, gpflow.kernels.RBF):
-            self.omega = gpflow.param.Param(np.random.randn(num_basis, input_dim))
+            self.omega = gpflow.params.Parameter(np.random.randn(num_basis, input_dim))
         elif isinstance(kern, gpflow.kernels.Matern12):
-            self.omega = gpflow.param.Param(np.random.standard_cauchy((num_basis, input_dim)))
+            self.omega = gpflow.params.Parameter(np.random.standard_cauchy((num_basis, input_dim)))
         elif isinstance(kern, gpflow.kernels.Matern32):
-            self.omega = gpflow.param.Param(np.random.standard_t(2, (num_basis, input_dim)))
+            self.omega = gpflow.params.Parameter(np.random.standard_t(2, (num_basis, input_dim)))
         elif isinstance(kern, gpflow.kernels.Matern52):
-            self.omega = gpflow.param.Param(np.random.standard_t(3, (num_basis, input_dim)))
+            self.omega = gpflow.params.Parameter(np.random.standard_t(3, (num_basis, input_dim)))
         else:
             raise NotImplementedError
         assert self.Y.shape[1] == 1
@@ -49,7 +62,9 @@ class SSGP(gpflow.model.GPModel):
         # sn2  = exp(2*optimizeparams(D+2));                                      % noise power
         # w = reshape(optimizeparams(D+3:end), [m, D]);                           % unscaled model angular frequencies
 
-    def build_likelihood(self):
+    @name_scope('likelihood')
+    @params_as_tensors
+    def _build_likelihood(self):
 
         # w = w./repmat(ell',[m,1]);                                              % scaled model angular frequencies
         w = self.omega / self.kern.lengthscales
@@ -63,7 +78,7 @@ class SSGP(gpflow.model.GPModel):
 
         # R = chol((sf2/m)*(phi'*phi) + sn2*eye(2*m));                            % calculate some often-used constants
         A = (self.kern.variance / m_float) * tf.matmul(tf.transpose(phi), phi)\
-            + self.likelihood.variance * gpflow.tf_wraps.eye(2*m)
+            + self.likelihood.variance * tf.eye(2*m,dtype=float_type)
         RT = tf.cholesky(A)
         R = tf.transpose(RT)
 
@@ -84,7 +99,9 @@ class SSGP(gpflow.model.GPModel):
             + n/2*np.log(2*np.pi)
         return -out
 
-    def build_predict(self, Xnew, full_cov=False):
+    @name_scope('likelihood')
+    @params_as_tensors
+    def _build_predict(self, Xnew, full_cov=False):
         # w = w./repmat(ell',[m,1]);                                              % scaled model angular frequencies
         w = self.omega / self.kern.lengthscales
         m = tf.shape(self.omega)[0]
