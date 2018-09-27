@@ -24,6 +24,9 @@ from .matrix_structures import BlockDiagMat_many
 from gpflow import settings
 float_type = settings.dtypes.float_type
 
+from gpflow.decors import params_as_tensors
+from gpflow.decors import name_scope
+
 class GPR_1d(gpflow.models.GPModel):
     def __init__(self, X, Y, ms, a, b, kern):
         assert X.shape[1] == 1
@@ -48,9 +51,13 @@ class GPR_1d(gpflow.models.GPModel):
         self.KufKfu = np.dot(Kuf, Kuf.T)
         self.tr_YTY = np.sum(np.square(Y))
 
-    def build_likelihood(self):
+    @name_scope('likelihood')
+    @params_as_tensors
+    def _build_likelihood(self):
         return reduce(tf.add, self.build_likelihood_terms())
 
+    @name_scope('likelihood_terms')
+    @params_as_tensors
     def build_likelihood_terms(self):
         Kdiag = self.kern.Kdiag(self.X)
         Kuu = make_Kuu(self.kern, self.a, self.b, self.ms)
@@ -77,7 +84,9 @@ class GPR_1d(gpflow.models.GPModel):
     def compute_likelihood_terms(self):
         return self.build_likelihood_terms()
 
-    def build_predict(self, Xnew, full_cov=False):
+    @name_scope('predict')
+    @params_as_tensors
+    def _build_predict(self, Xnew, full_cov=False):
         Kuu = make_Kuu(self.kern, self.a, self.b, self.ms)
         sigma2 = self.likelihood.variance
 
@@ -147,7 +156,9 @@ class GPR_additive(gpflow.models.GPModel):
         self.KufY = gpflow.params.DataHolder(self.KufY)
         self.KufKfu = gpflow.params.DataHolder(self.KufKfu)
 
-    def build_likelihood(self):
+    @name_scope('likelihood')
+    @params_as_tensors
+    def _build_likelihood(self):
         num_data = tf.shape(self.Y)[0]
         output_dim = tf.shape(self.Y)[1]
 
@@ -175,7 +186,9 @@ class GPR_additive(gpflow.models.GPModel):
 
         return bound
 
-    def build_predict(self, Xnew, full_cov=False):
+    @name_scope('predict')
+    @params_as_tensors
+    def _build_predict(self, Xnew, full_cov=False):
         Kuu = [make_Kuu(k, ai, bi, self.ms) for k, ai, bi in zip(self.kerns, self.a, self.b)]
         Kuu = BlockDiagMat_many([mat for k in Kuu for mat in [k.A, k.B]])
         sigma2 = self.likelihood.variance
@@ -273,10 +286,14 @@ class GPRKron(gpflow.models.GPModel):
         self.KufKfu = np.dot(self.Kuf, self.Kuf.T)
         self.tr_YTY = np.sum(np.square(Y))
 
-    def build_likelihood(self):
+    @name_scope('likelihood')
+    @params_as_tensors
+    def _build_likelihood(self):
         return reduce(tf.add, self.build_likelihood_terms())
 
-    def build_likelihood_terms(self):
+    @name_scope('likelihood_terms')
+    @params_as_tensors
+    def _build_likelihood_terms(self):
         Kdiag = reduce(tf.multiply, [k.Kdiag(self.X[:, i:i+1]) for i, k in enumerate(self.kerns)])
         Kuu = [make_Kuu(k, a, b, self.ms) for k, a, b, in zip(self.kerns, self.a, self.b)]
         Kuu_solid = kron([Kuu_d.get() for Kuu_d in Kuu])
@@ -308,7 +325,9 @@ class GPRKron(gpflow.models.GPModel):
     def compute_likelihood_terms(self):
         return self.build_likelihood_terms()
 
-    def build_predict(self, Xnew, full_cov=False):
+    @name_scope('predict')
+    @params_as_tensors
+    def _build_predict(self, Xnew, full_cov=False):
         Kuu = [make_Kuu(k, a, b, self.ms) for k, a, b, in zip(self.kerns, self.a, self.b)]
         Kuu_solid = kron([Kuu_d.get() for Kuu_d in Kuu])
         Kuu_inv_solid = kron([Kuu_d.inv().get() for Kuu_d in Kuu])

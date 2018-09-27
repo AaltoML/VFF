@@ -15,7 +15,7 @@
 
 import numpy as np
 from matplotlib import pyplot as plt
-import GPflow
+import gpflow
 import VFF
 plt.ion()
 # import matplotlib2tikz
@@ -40,30 +40,39 @@ def plot(m, ax=None):
 
 
 # build a full model to get hypers.
-K = GPflow.kernels.Matern12
-m_full = GPflow.gpr.GPR(X, Y, kern=K(1))
-m_full.optimize()
+K = gpflow.kernels.Matern12
+m_full = gpflow.models.gpr.GPR(X, Y, kern=K(1))
+m_full.compile()
+gpflow.train.ScipyOptimizer().minimize(m_full)
 
 f, axes = plt.subplots(2, 3, sharex=True, sharey=True)
 axes = axes.flatten()
 ax_count = 0
 for M in [20, 100, 500]:
     m = VFF.SSGP(X, Y, kern=K(1), num_basis=M)
-    m.omega.fixed = True
-    m.kern.set_parameter_dict(m_full.kern.get_parameter_dict())
-    m.likelihood.set_parameter_dict(m_full.likelihood.get_parameter_dict())
+    m.omega.trainable = False
+    #m.kern.set_parameter_dict(m_full.kern.get_parameter_dict())
+    m.kern.variance = m_full.kern.variance.value
+    m.kern.lengthscales = m_full.kern.lengthscales.value
+    #m.likelihood.set_parameter_dict(m_full.likelihood.get_parameter_dict())
+    m.likelihood.variance = m_full.likelihood.variance.value
     if optimize:
-        m.optimize()
+        m.compile()
+        gpflow.train.ScipyOptimizer().minimize(m)
     plot(m, axes[ax_count])
     axes[ax_count].set_title('RFF (%i)' % M)
     ax_count += 1
 
 for M in [20, 100]:
     m = VFF.gpr.GPR_1d(X, Y, np.arange(M), a=-1, b=2, kern=K(1))
-    m.kern.set_parameter_dict(m_full.kern.get_parameter_dict())
-    m.likelihood.set_parameter_dict(m_full.likelihood.get_parameter_dict())
+    #m.kern.set_parameter_dict(m_full.kern.get_parameter_dict())
+    m.kern.variance = m_full.kern.variance.value
+    m.kern.lengthscales = m_full.kern.lengthscales.value
+    #m.likelihood.set_parameter_dict(m_full.likelihood.get_parameter_dict())
+    m.likelihood.variance = m_full.likelihood.variance.value
     if optimize:
-        m.optimize()
+        m.compile()
+        gpflow.train.ScipyOptimizer().minimize(m)
     plot(m, axes[ax_count])
     axes[ax_count].set_title('VFF (%i)' % M)
     ax_count += 1

@@ -114,7 +114,7 @@ class SSGP(gpflow.models.GPModel):
 
         # R = chol((sf2/m)*(phi'*phi) + sn2*eye(2*m));                            % calculate some often-used constants
         A = (self.kern.variance / m_float) * tf.matmul(tf.transpose(phi), phi)\
-            + self.likelihood.variance * gpflow.tf_wraps.eye(2*m)
+            + self.likelihood.variance * tf.eye(2*m,dtype=float_type)
         RT = tf.cholesky(A)
         R = tf.transpose(RT)
 
@@ -141,7 +141,7 @@ class SSGP(gpflow.models.GPModel):
         if full_cov:
             var = self.likelihood.variance * self.kern.variance / m_float *\
                 tf.matmul(PhiRistar, tf.transpose(PhiRistar)) + \
-                gpflow.tf_wraps.eye(tf.shape(Xnew)[0]) * 1e-6
+                tf.eye(tf.shape(Xnew)[0],dtype=float_type) * 1e-6
             var = tf.expand_dims(var, 2)
         else:
             var = self.likelihood.variance * self.kern.variance / m_float * tf.reduce_sum(tf.square(PhiRistar), 1)
