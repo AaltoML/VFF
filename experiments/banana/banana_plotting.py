@@ -35,7 +35,7 @@ def plot(m, ax):
         fig, ax = plt.subplots(1, 1, figsize=(6, 6))
     xtest, ytest = np.mgrid[-2.5:2.5:100j, -2.5:2.5:100j]
     Xtest = np.vstack((xtest.flatten(), ytest.flatten())).T
-    for i, mark in [[1, 'x'], [2, 'o']]:
+    for i, mark in [[0, 'x'], [1, 'o']]:
         ind = m.Y.value[:, 0] == i
         ax.plot(m.X.value[ind, 0], m.X.value[ind, 1], mark)
     mu, var = m.predict_y(Xtest)
@@ -80,8 +80,8 @@ axes = axes.flatten()
 for ax, lab, m in zip(axes, labels, models):
     plot(m, ax)
     ax.set_title(lab)
-    if hasattr(m, 'Z'):
-        ax.plot(m.Z.value[:, 0], m.Z.value[:, 1], 'ko', ms=4)
+    if hasattr(m, 'feature'):
+        ax.plot(m.feature.Z.value[:, 0], m.feature.Z.value[:, 1], 'ko', ms=4)
 
 
 # m2t.save('banana_compare.tikz')
